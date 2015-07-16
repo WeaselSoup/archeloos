@@ -12,6 +12,7 @@ class Archeloos:
         self.watch = self.config.get("torrents", "watch_dir")
         self.torrents = []
         self.shows = self.config.get("torrents", "shows").split(",")
+        self.quality = self.config.get("torrents", "quality")
 
     def check_torrents(self, torrents):
         l = []
@@ -19,15 +20,8 @@ class Archeloos:
             st = "%s" % t
             for s in self.shows:
                 if s.lower() in st.lower():
-                    #print("'%s' match favorite '%s'" % (s.lower(), st.lower()))
-
-                    print("new show : ", t.name, "season: ", t.season, ", episode: ", t.episode)
-                    #print("quality: ", t.quality)
-                    #print("extra: ", t.extra)
-                    #print("link: ", t.link)
-                    #print("")
-                    #if "720p" in t.quality or "1080p" in t.quality:
-                    if "720p" in t.quality and t.download(self.watch):
+                    if self.quality in t.quality and t.download(self.watch):
+                        print(t)
                         l.append(t)
                     #print(t.link)
         #print(len(torrents))
