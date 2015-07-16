@@ -15,9 +15,9 @@ class Notifier(object):
         msg = MIMEText(text, 'plain', 'UTF-8')
         msg["Subject"] = "%s: archeloos" % socket.gethostname()
         msg["From"] = "%s" % self.sender
-        msg["To"] = "%s" % ", ".join(str(e) for e in self.receivers)
+        msg["To"] = "%s" % self.receivers
         server = smtplib.SMTP(self.server)
-        server.set_debuglevel(True)
+        #server.set_debuglevel(True)
         server.starttls()
         server.login(self.user, self.password)
         server.sendmail(self.sender, self.receivers, msg.as_string())
