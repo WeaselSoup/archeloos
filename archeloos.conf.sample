@@ -1,0 +1,16 @@
+[tracker]
+rss_url = https://hiddentracker.ro/rss.php?feed=dl
+user_id = 123456
+user_pass = 123456789abdcef
+
+[torrents]
+shows = The.Avengers.S01,The.Persuaders.S01
+quality = 720p
+watch_dir = /var/lib/transmission/watch/
+
+[notify]
+sender = sample@mail.com
+user = sample@mail.com
+password = superpassword
+server = mail.com:995
+receivers = myemail@mail.com
