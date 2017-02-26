@@ -3,19 +3,26 @@ import requests
 import feedparser
 import re
 
+from urllib.parse import urlparse
+
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
+PROVIDERS = "HULU|HBO|AMZN"
+RIPS = "DSRip|DVBRip|DVDR|DVDRip|DVDScr|BluRay|SatRip|TVRip|WebRip|WEBRip|WEB-DL|WEB|HDTV|HR|PDTV|SVCD"
+PACKS = "RERiP|PROPER|REAL|REPACK|EXTENDED|INTERNAL"
+RESOLUTION ="720p|1080i|1080p"
+QUALITY = "%s|%s|%s|%s|\." % (PROVIDERS, RIPS, PACKS, RESOLUTION)
 
-QUALITY = "DSRip|DVBRip|DVDR|DVDRip|DVDScr|HDTV|HR.HDTV|HR.PDTV|PDTV|SatRip|SVCD|TVRip|WebRip|720p|720p.HDTV|1080i|1080p|\."
+TITLE = "(!?(%s))[a-zA-Z\.']+" % (QUALITY)
 
-EPISODE = "(?P<name>.*)\.S(?P<season>[0-9]+)E(?P<episode>[0-9]+)\.(?P<quality>(%s)+)\.(?P<extra>.*)" % QUALITY
+EPISODE = "(?P<name>.*)\.S(?P<season>[0-9]+)\.?E(?P<episode>[0-9]+)(?P<title>%s)?\.(?P<quality>(%s)+)\.(?P<extra>.*)" % (TITLE, QUALITY)
 EPISODE_RE = r"^%s$" % EPISODE
 
-SEASON = "(?P<name>.*)\.(S|Season\.)(?P<season>[0-9]+)\.(?P<quality>(%s)+)\.(?P<extra>.*)" % QUALITY
+SEASON = "(?P<name>.*)\.(S|Season\.)(?P<season>[0-9]+)\.(?P<quality>(%s)+)\.(?P<extra>.*)" % (QUALITY)
 SEASON_RE = r"^%s$" % SEASON
 
-COMPLETE = "(?P<name>.*)\.Complete\.(?P<quality>(%s)+)\.(?P<extra>.*)" % QUALITY
+COMPLETE = "(?P<name>.*)\.(Complete|COMPLETE)\.(?P<quality>(%s)+)\.(?P<extra>.*)" % (QUALITY)
 COMPLETE_RE = r"^%s$" % COMPLETE
 
 STATUS = "Status: (?P<seeders>([0-9]+|no)) seeder(s)? \| (?P<leechers>([0-9]+|no)) leecher(s)?"
@@ -52,17 +59,37 @@ class Torrent(object):
     def __hash__(self):
         return hash("Torrent%s" % self)
 
-    def download(self, location):
-        name = "%s.torrent" % self
+
+class Downloader(object):
+    def __init__(self, url, user, password):
+        self.url = url
+        self.cookies = { "uid" : user, "pass" : password }
+
+    def list_torrents(self):
+        try:
+            req = requests.get(self.url, cookies=self.cookies)
+        except Exception as e:
+            print(e)
+            return []
+        feed = feedparser.parse(req.content)
+        #for e in feed["entries"]:
+        #    txt = "Title = '%s',  Link = '%s'" % (e["title"], e["link"])
+        #    #print(txt)
+        return feed["entries"]
+
+    def download(self, torrent, location):
+        name = "%s.torrent" % torrent
         #print("download '%s' to '%s'" % (name, location))
         path = location + "/" + name
         #print(name)
         #print(path)
-        #print(self.link)
+        id_torrent = self.extract_id(torrent.link)
+        link = "https://freshon.tv/download.php?" + id_torrent + "&amp;type=torrent"
+        #print(link)
         if (os.path.isfile(path + ".added")):
             print("file: '%s' already exist" % path)
             return False
-        req = requests.get(self.link, stream=True)
+        req = requests.get(link, stream=True, cookies=self.cookies)
         with open(path, "wb") as f:
             for chunk in req.iter_content(chunk_size=1024):
                 if chunk:
@@ -70,18 +97,9 @@ class Torrent(object):
                     f.flush()
         return True
 
-def list_torrents(url, user, password):
-    cookies = { "uid" : user, "pass" : password }
-    try:
-        req = requests.get(url, cookies=cookies)
-    except Exception as e:
-        print(e)
-        return []
-    feed = feedparser.parse(req.content)
-    #for e in feed["entries"]:
-    #    txt = "Title = '%s',  Link = '%s'" % (e["title"], e["link"])
-    #    #print(txt)
-    return feed["entries"]
+    def extract_id(self, url):
+        o = urlparse(url)
+        return o.query
 
 def list_lookup(name, season, episode, quality, extra):
     for l in LIST:
@@ -106,6 +124,9 @@ def parse_results(feed):
             name = match.group("name")
             season = int(match.group("season"))
             episode = int(match.group("episode"))
+            title = match.group("title")
+            if title:
+                print("parsed title:  '%s'         origin:%s" % (title, e["title"]))
             quality = match.group("quality")
             extra = match.group("extra")
             t = Torrent(name = name, season = season, episode = episode, quality = quality, extra = extra, link = link)
@@ -126,6 +147,8 @@ def parse_results(feed):
                     quality = match.group("quality")
                     extra = match.group("extra")
                     t = Torrent(name = name, quality = quality, extra = extra, link = link)
+                else:
+                    print("unmatch '%s'" % e["title"])
 
         # seeders / leechers
         def _cast_int(s):

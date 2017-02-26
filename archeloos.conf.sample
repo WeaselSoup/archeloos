@@ -5,7 +5,10 @@ user_pass = 123456789abdcef
 
 [torrents]
 shows = The.Avengers.S01,The.Persuaders.S01
-quality = 720p
+fast_list = Game.of.Thrones
+resolution = 720p
+quality = WEB
+extra =
 watch_dir = /var/lib/transmission/watch/
 
 [notify]
