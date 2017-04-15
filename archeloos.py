@@ -34,8 +34,8 @@ class Archeloos:
         print("new pick ", torrent)
         if not any(ss in s for ss in shows):
             return False
-        if self.resolution.lower() not in torrent.quality.lower():
-            print("  - %s WRONG QUALITY" % torrent)
+        if self.resolution.lower() not in torrent.resolution.lower():
+            print("  - %s WRONG QUALITY    '%s' not in '%s'" % (torrent, self.resolution, torrent.resolution))
             return False
         if s in fast_list:
             print("  - %s FAST LIST" % torrent)
@@ -43,7 +43,7 @@ class Archeloos:
         if self.quality.lower() in torrent.quality.lower():
             print("  - %s OK" % torrent)
             return True
-        print("  - %s NOT SELECTED  ('%s' and '%s') != '%s'" % (torrent, self.resolution, self.quality, torrent.quality))
+        print("  - %s NOT SELECTED  ('%s' and '%s') != ('%s' and '%s')" % (torrent, self.resolution, self.quality, torrent.resolution, torrent.quality))
         return False
 
     def check_torrents(self, torrents):

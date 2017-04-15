@@ -1,7 +1,8 @@
 import os
 import requests
-import feedparser
 import re
+import feedparser
+from guessit import guessit
 
 from urllib.parse import urlparse
 
@@ -30,21 +31,25 @@ STATUS = "Status: (?P<seeders>([0-9]+|no)) seeder(s)? \| (?P<leechers>([0-9]+|no
 SUMMARY_RE = r"^%s. %s$" % (EPISODE, STATUS)
 
 class Torrent(object):
-    def __init__(self, name, quality, extra, link, season = None, episode = None):
+    def __init__(self, name, resolution, quality, extra, link, season = None, episode = None, date = None):
         self.name = name
         self.season = season
         self.episode = episode
+        self.date = date
+        self.resolution = resolution
         self.quality = quality
         self.extra = extra
         self.link = link
 
     def __str__(self):
         if self.episode:
-            s = "%s.S%02d.E%02d.%s.%s" % (self.name, self.season, self.episode, self.quality, self.extra)
+            s = "%s.S%02d.E%02d.%s.%s.%s" % (self.name, self.season, self.episode, self.resolution, self.quality, self.extra)
         elif self.season:
-            s = "%s.S%02d.%s.%s" % (self.name, self.season, self.quality, self.extra)
+            s = "%s.S%02d.%s.%s.%s" % (self.name, self.season, self.resolution, self.quality, self.extra)
+        elif self.date:
+            s = "%s.%s.%s.%s.%s" % (self.name, self.date, self.resolution, self.quality, self.extra)
         else:
-            s = "%s.COMPLETE.%s.%s" % (self.name, self.quality, self.extra)
+            s = "%s.COMPLETE.%s.%s.%s" % (self.name, self.resolution, self.quality, self.extra)
         return s
 
     def __eq__(self, other):
@@ -107,48 +112,45 @@ def list_lookup(name, season, episode, quality, extra):
             print("MATCH: name='%s', season=%d, episode=%d, quality='%s', extra='%s'" % (name, season, episode, quality, extra))
 
 def parse_results(feed):
-    episode_pattern = re.compile(EPISODE_RE)
-    season_pattern = re.compile(SEASON_RE)
-    complete_pattern = re.compile(COMPLETE_RE)
     status_pattern = re.compile(SUMMARY_RE)
     l = []
     for e in feed:
         t = None
-        #pp.pprint(e)
-        #print("---")
         link = e["link"]
+        guess = guessit(e["title"])
 
-        # episode
-        match = episode_pattern.match(e["title"])
-        if match:
-            name = match.group("name")
-            season = int(match.group("season"))
-            episode = int(match.group("episode"))
-            title = match.group("title")
-            if title:
-                print("parsed title:  '%s'         origin:%s" % (title, e["title"]))
-            quality = match.group("quality")
-            extra = match.group("extra")
-            t = Torrent(name = name, season = season, episode = episode, quality = quality, extra = extra, link = link)
+        name = None
+        season = None
+        episode = None
+        title = None
+        resolution = ""
+        quality = ""
+        extra = ""
+        date = ""
+        if "title" in guess:
+            name = guess["title"].replace(" ", ".")
+        if "season" in guess:
+            season = guess["season"]
+        if "episode" in guess:
+            episode = guess["episode"]
+        if "episode_title" in guess:
+            title = guess["episode_title"].replace(" ", ".")
+        if "date" in guess:
+            date = guess["date"]
+        if "screen_size" in guess:
+            resolution = guess["screen_size"]
+        if "format" in guess:
+            quality = guess["format"]
+        if "video_codec" in guess:
+            extra = guess["video_codec"]
+        #print("title = '%s'" % e["title"])
+        #print(guess)
+        if name and (season or date):
+            #print("name = '%s',  season = '%s',  episode = '%s',  date= '%s',  resolution = '%s',  quality = '%s',  extra = '%s',  link = '%s'" % (name, season, episode, date, resolution, quality, extra, link))
+            t = Torrent(name = name, season = season, episode = episode, date = date, resolution = resolution, quality = quality, extra = extra, link = link)
         else:
-            # season
-            match = season_pattern.match(e["title"])
-            if match:
-                name = match.group("name")
-                season = int(match.group("season"))
-                quality = match.group("quality")
-                extra = match.group("extra")
-                t = Torrent(name = name, season = season, quality = quality, extra = extra, link = link)
-            else:
-                # complete
-                match = complete_pattern.match(e["title"])
-                if match:
-                    name = match.group("name")
-                    quality = match.group("quality")
-                    extra = match.group("extra")
-                    t = Torrent(name = name, quality = quality, extra = extra, link = link)
-                else:
-                    print("unmatch '%s'" % e["title"])
+            print("no match '%s'" % e["title"])
+            print("name = '%s',  season = '%s',  episode = '%s',  date= '%s',  resolution = '%s',  quality = '%s',  extra = '%s',  link = '%s'" % (name, season, episode, date, resolution, quality, extra, link))
 
         # seeders / leechers
         def _cast_int(s):
